@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum UserRole {
+  ADMIN
+  LIDER
+  PARTICIPANTE
+}
+
+enum ActivityPeriod {
+  SEMANAL
+  MES @map("MÊS")
+  QUADRIENAL
+  SEMESTRAL
+  ANO
+}
+
+enum ActivityArea {
+  DISCIPLINAS
+  CELEBRACAO
+  LIDERANCA
+  FAMILIA
+  MISSAO_SOCIAL
+  EVENTOS_IGREJA
+  IDENTIDADE
+}
+
+enum CompletionStatus {
+  PENDENTE
+  CONCLUIDA
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(PARTICIPANTE)
+
+  participant  Participant?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Participant {
+  id           String   @id @default(cuid())
+  userId       String?  @unique
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  name         String
+  birthDate    DateTime?
+  guardianName String?
+  phone        String?
+
+  groups       GroupMember[]
+  completions  Completion[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Group {
+  id          String        @id @default(cuid())
+  name        String
+  year        Int?
+  isActive    Boolean       @default(true)
+
+  members     GroupMember[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model GroupMember {
+  id            String      @id @default(cuid())
+  groupId       String
+  participantId String
+
+  group         Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime    @default(now())
+
+  @@unique([groupId, participantId])
+}
+
+model Activity {
+  id          String         @id @default(cuid())
+  slug        String         @unique
+  title       String
+  description String
+  period      ActivityPeriod
+  area        ActivityArea
+  points      Int            @default(0)
+  isActive    Boolean        @default(true)
+
+  completions Completion[]
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model Completion {
+  id            String           @id @default(cuid())
+  participantId String
+  activityId    String
+
+  periodKey     String
+  status        CompletionStatus @default(PENDENTE)
+  completedAt   DateTime?
+  note          String?
+  evidenceUrl   String?
+
+  participant   Participant      @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  activity      Activity         @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([participantId, activityId, periodKey])
+  @@index([periodKey])
+}
