@@ -1,20 +1,5 @@
-require("dotenv/config");
-
-const { PrismaMariaDb } = require("@prisma/adapter-mariadb");
-const { PrismaClient } = require("@prisma/client");
 const { hashPassword } = require("../src/lib/password");
 const { getPeriodKey } = require("../src/utils/periodKey");
-
-const adapter = new PrismaMariaDb({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT ? Number(process.env.DB_PORT) : undefined,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  connectionLimit: 10,
-});
-
-const prisma = new PrismaClient({ adapter });
 
 function normalizePeriod(period) {
   if (period === "WEEK") return "SEMANAL";
@@ -219,7 +204,7 @@ const soulPlusActivities = [
   },
 ];
 
-async function main() {
+async function seedDatabase(prisma) {
   const adminPasswordHash = await hashPassword("Admin@12345");
   const leaderPasswordHash = await hashPassword("Lider@12345");
   const participantPasswordHash = await hashPassword("User@12345");
@@ -370,15 +355,37 @@ async function main() {
   return { adminUser, leaderUser, participantUser };
 }
 
-main()
-  .then(async () => {
-    await prisma.$disconnect();
-    process.stdout.write(
-      `Seed OK: users=3 participants=2 groups=1 groupMembers=2 activities=${soulPlusActivities.length} completions=${4}\n`,
-    );
-  })
-  .catch(async (e) => {
-    await prisma.$disconnect();
-    process.stderr.write(String(e) + "\n");
-    process.exit(1);
+module.exports = { seedDatabase };
+
+if (require.main === module) {
+  require("dotenv/config");
+  const { PrismaMariaDb } = require("@prisma/adapter-mariadb");
+  const { PrismaClient } = require("@prisma/client");
+
+  const adapter = new PrismaMariaDb({
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT ? Number(process.env.DB_PORT) : undefined,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    connectionLimit: 10,
+    connectTimeout: 10000,
+    acquireTimeout: 30000,
+    allowPublicKeyRetrieval: true,
   });
+
+  const prisma = new PrismaClient({ adapter });
+
+  seedDatabase(prisma)
+    .then(async () => {
+      await prisma.$disconnect();
+      process.stdout.write(
+        `Seed OK: users=3 participants=2 groups=1 groupMembers=2 activities=${soulPlusActivities.length} completions=${4}\n`,
+      );
+    })
+    .catch(async (e) => {
+      await prisma.$disconnect();
+      process.stderr.write(String(e) + "\n");
+      process.exit(1);
+    });
+}

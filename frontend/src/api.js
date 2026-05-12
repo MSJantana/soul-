@@ -1,4 +1,6 @@
 const STORAGE_KEY = "soulmais_auth";
+const LAST_ACTIVE_KEY = "soulmais_last_active";
+const LOGOUT_AT_KEY = "soulmais_logout_at";
 
 export function getAuth() {
   try {
@@ -10,12 +12,37 @@ export function getAuth() {
   }
 }
 
+export function touchSession(ts = Date.now()) {
+  try {
+    localStorage.setItem(LAST_ACTIVE_KEY, String(ts));
+  } catch {
+    // ignore
+  }
+}
+
+export function getLastActive() {
+  try {
+    const raw = localStorage.getItem(LAST_ACTIVE_KEY);
+    const n = raw ? Number(raw) : Number.NaN;
+    return Number.isFinite(n) ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export function setAuth(auth) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(auth));
+  touchSession();
 }
 
 export function clearAuth() {
-  localStorage.removeItem(STORAGE_KEY);
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(LAST_ACTIVE_KEY);
+    localStorage.setItem(LOGOUT_AT_KEY, String(Date.now()));
+  } catch {
+    // ignore
+  }
 }
 
 async function requestOnce(path, accessToken, options = {}) {
@@ -50,6 +77,7 @@ function isAuthEndpoint(path) {
 
 export async function apiFetch(path, options = {}) {
   const auth = getAuth();
+  if (auth?.accessToken) touchSession();
 
   try {
     return await requestOnce(path, auth?.accessToken, options);

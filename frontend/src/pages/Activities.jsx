@@ -1,6 +1,8 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiFetch, clearAuth, getAuth } from "../api";
+import { apiFetch, getAuth } from "../api";
+import AppShell from "../components/AppShell";
+import Icon from "../components/Icon";
 
 const PERIODS = ["SEMANAL", "MES", "QUADRIENAL", "SEMESTRAL", "ANO"];
 const AREAS = [
@@ -41,117 +43,6 @@ function normalizePeriod(period) {
   return period;
 }
 
-function Icon({ name }) {
-  if (name === "home") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 3.5 3 11v10a1 1 0 0 0 1 1h5v-7h6v7h5a1 1 0 0 0 1-1V11l-9-7.5Zm7 17h-3v-7a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v7H5v-8.8l7-5.8 7 5.8v8.8Z" />
-      </svg>
-    );
-  }
-  if (name === "list") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M7 6h14v2H7V6Zm0 5h14v2H7v-2Zm0 5h14v2H7v-2ZM3 6h2v2H3V6Zm0 5h2v2H3v-2Zm0 5h2v2H3v-2Z" />
-      </svg>
-    );
-  }
-  if (name === "plus") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" />
-      </svg>
-    );
-  }
-  if (name === "check") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2Z" />
-      </svg>
-    );
-  }
-  if (name === "close") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M18.3 5.71 12 12l6.3 6.29-1.41 1.42L10.59 13.4 4.3 19.71 2.89 18.29 9.17 12 2.89 5.71 4.3 4.29l6.29 6.3 6.3-6.3 1.41 1.42Z" />
-      </svg>
-    );
-  }
-  if (name === "refresh") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.9 9.33h-2.07A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L14 10h6V4l-2.35 2.35Z" />
-      </svg>
-    );
-  }
-  if (name === "id") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm2 0v10h14V7H5Zm2 2h6v2H7V9Zm0 4h10v2H7v-2Z" />
-      </svg>
-    );
-  }
-  if (name === "edit") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25Zm2.92 1.83H5v-.92l9.06-9.06.92.92-9.06 9.06ZM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83Z" />
-      </svg>
-    );
-  }
-  if (name === "trash") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M6 7h12l-1 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7Zm4-4h4l1 2h5v2H4V5h5l1-2Zm0 8h2v9h-2v-9Zm4 0h2v9h-2v-9Z" />
-      </svg>
-    );
-  }
-  if (name === "chevLeft") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12l4.58-4.59Z" />
-      </svg>
-    );
-  }
-  if (name === "chevRight") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="m8.59 16.59 1.41 1.41 6-6-6-6-1.41 1.41L13.17 12l-4.58 4.59Z" />
-      </svg>
-    );
-  }
-  if (name === "gear") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M19.14 12.94a7.6 7.6 0 0 0 .05-.94 7.6 7.6 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 13.9 1h-3.8a.5.5 0 0 0-.5.42l-.36 2.54c-.58.23-1.12.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 7.48a.5.5 0 0 0 .12.64l2.03 1.58c-.03.31-.05.63-.05.94s.02.63.05.94L2.82 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.23.4.32.64.22l2.39-.96c.5.4 1.05.71 1.63.94l.36 2.54c.04.24.25.42.5.42h3.8c.25 0 .46-.18.5-.42l.36-2.54c.58-.23 1.12-.54 1.63-.94l2.39.96c.24.1.51 0 .64-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z" />
-      </svg>
-    );
-  }
-  if (name === "info") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M11 17h2v-6h-2v6Zm0-8h2V7h-2v2Zm1 13a10 10 0 1 1 0-20 10 10 0 0 1 0 20Zm0-2a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" />
-      </svg>
-    );
-  }
-  if (name === "logout") {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M10 17v-2h4v-6h-4V7h4a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-4Zm-1-1.59L5.59 12 9 8.59 7.59 7.17 2.76 12l4.83 4.83L9 15.41ZM20 3h-8v2h8v14h-8v2h8a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Z" />
-      </svg>
-    );
-  }
-  return null;
-}
-
-function requiredStringProp(props, propName, componentName) {
-  const value = props?.[propName];
-  if (value == null) return new Error(`${componentName}: prop "${propName}" é obrigatória.`);
-  if (typeof value !== "string") return new Error(`${componentName}: prop "${propName}" deve ser string.`);
-  return null;
-}
-
-Icon.propTypes = { name: requiredStringProp };
-
 export default function Activities() {
   const navigate = useNavigate();
   const auth = getAuth();
@@ -176,14 +67,12 @@ export default function Activities() {
 
   const [editingId, setEditingId] = useState("");
   const [detailsId, setDetailsId] = useState("");
-  const [menuOpen, setMenuOpen] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editPeriod, setEditPeriod] = useState("SEMANAL");
   const [editArea, setEditArea] = useState("DISCIPLINAS");
   const [editPoints, setEditPoints] = useState(0);
   const [editIsActive, setEditIsActive] = useState(true);
-  const menuRef = useRef(null);
 
   useEffect(() => {
     if (!auth?.accessToken) {
@@ -229,34 +118,6 @@ export default function Activities() {
       .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
       .join(" ");
   }, [userEmail]);
-
-  const initials = useMemo(() => {
-    const parts = displayName.split(" ").filter(Boolean);
-    const a = parts[0]?.[0] || "U";
-    const b = parts[1]?.[0] || "";
-    return (a + b).toUpperCase();
-  }, [displayName]);
-
-  useEffect(() => {
-    function onDown(e) {
-      if (e.key === "Escape") setMenuOpen(false);
-    }
-    function onClick(e) {
-      if (!menuRef.current) return;
-      if (!menuRef.current.contains(e.target)) setMenuOpen(false);
-    }
-    document.addEventListener("keydown", onDown);
-    document.addEventListener("mousedown", onClick);
-    return () => {
-      document.removeEventListener("keydown", onDown);
-      document.removeEventListener("mousedown", onClick);
-    };
-  }, []);
-
-  function logout() {
-    clearAuth();
-    navigate("/login", { replace: true });
-  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -385,78 +246,11 @@ export default function Activities() {
   }
 
   return (
-    <div className="shell">
-      <header className="topbar">
-        <div className="topbarInner">
-          <div className="brand">
-            <span>SOUL+</span>
-            <span className="versionPill">v1.1.8</span>
-          </div>
-          <nav className="navLinks">
-            <button type="button" className="navLink" onClick={() => navigate("/")}>
-              <span className="btnIcon" aria-hidden="true">
-                <Icon name="home" />
-              </span>
-              <span>Dashboard</span>
-            </button>
-            <button type="button" className="navLink navLinkActive">
-              <span className="btnIcon" aria-hidden="true">
-                <Icon name="list" />
-              </span>
-              <span>Atividades</span>
-            </button>
-          </nav>
-          <div className="topbarRight">
-            <div className="userMenu" ref={menuRef}>
-              <button type="button" className="userBtn" onClick={() => setMenuOpen((v) => !v)}>
-                <span className="userAvatar">{initials}</span>
-                <span className="userName">{displayName}</span>
-                <span className="navCaret">▾</span>
-              </button>
-              {menuOpen ? (
-                <div className="menu">
-                  <div className="menuHeader">
-                    <div className="menuName">{displayName}</div>
-                    <div className="menuEmail">{userEmail}</div>
-                  </div>
-                  <div className="menuDivider" />
-                  <button type="button" className="menuItem" disabled>
-                    <span className="menuItemLeft">
-                      <span className="menuIcon" aria-hidden="true">
-                        <Icon name="gear" />
-                      </span>
-                      <span>Configurações</span>
-                    </span>
-                  </button>
-                  <button type="button" className="menuItem" disabled>
-                    <span className="menuItemLeft">
-                      <span className="menuIcon" aria-hidden="true">
-                        <Icon name="info" />
-                      </span>
-                      <span>Novidades</span>
-                    </span>
-                  </button>
-                  <div className="menuDivider" />
-                  <button type="button" className="menuItem" onClick={logout}>
-                    <span className="menuItemLeft">
-                      <span className="menuIcon" aria-hidden="true">
-                        <Icon name="logout" />
-                      </span>
-                      <span>Sair</span>
-                    </span>
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </header>
+    <AppShell active="activities">
+      <div className="pageHeading">Bem-vindo, {displayName}</div>
+      <div className="pageSubheading">Gestão de Atividades</div>
 
-      <div className="content">
-        <div className="pageHeading">Bem-vindo, {displayName}</div>
-        <div className="pageSubheading">Gestão de Atividades</div>
-
-        {error ? <div className="error">{error}</div> : null}
+      {error ? <div className="error">{error}</div> : null}
 
         <section className="panel">
           <div className="panelHeader">
@@ -858,7 +652,6 @@ export default function Activities() {
             </div>
           </div>
         </section>
-      </div>
-    </div>
+    </AppShell>
   );
 }

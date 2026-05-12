@@ -17,6 +17,10 @@ function shouldLogTokens() {
   return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
 }
 
+function isDev() {
+  return String(process.env.NODE_ENV || "").toLowerCase() !== "production";
+}
+
 function logTokens(label, { accessToken, refreshToken }) {
   if (!shouldLogTokens()) return;
   process.stdout.write(`[DEV_TOKEN] ${label} accessToken=${accessToken}\n`);
@@ -32,13 +36,13 @@ function registerAuthRoutes(app, prisma) {
 
   app.post("/api/auth/bootstrap", async (req, res) => {
     const schema = z.object({
-      email: z.string().email(),
+      email: z.email(),
       password: z.string().min(8),
     });
 
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "VALIDATION_ERROR" });
+      res.status(400).json({ error: "VALIDATION_ERROR", details: isDev() ? parsed.error.issues : undefined });
       return;
     }
 
@@ -71,13 +75,13 @@ function registerAuthRoutes(app, prisma) {
 
   app.post("/api/auth/login", loginLimiter, async (req, res) => {
     const schema = z.object({
-      email: z.string().email(),
+      email: z.email(),
       password: z.string().min(1),
     });
 
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "VALIDATION_ERROR" });
+      res.status(400).json({ error: "VALIDATION_ERROR", details: isDev() ? parsed.error.issues : undefined });
       return;
     }
 
@@ -112,7 +116,7 @@ function registerAuthRoutes(app, prisma) {
 
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) {
-      res.status(400).json({ error: "VALIDATION_ERROR" });
+      res.status(400).json({ error: "VALIDATION_ERROR", details: isDev() ? parsed.error.issues : undefined });
       return;
     }
 

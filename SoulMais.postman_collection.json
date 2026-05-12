@@ -20,6 +20,14 @@
     {
       "key": "activityId",
       "value": ""
+    },
+    {
+      "key": "participantId",
+      "value": ""
+    },
+    {
+      "key": "periodKey",
+      "value": ""
     }
   ],
   "item": [
@@ -56,7 +64,12 @@
           "name": "Bootstrap - POST /api/auth/bootstrap",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"admin@soulmais.local\",\n  \"password\": \"Admin@12345\"\n}"
@@ -87,7 +100,12 @@
           "name": "Login - POST /api/auth/login",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"email\": \"admin@soulmais.local\",\n  \"password\": \"Admin@12345\"\n}"
@@ -116,7 +134,12 @@
           "name": "Refresh - POST /api/auth/refresh",
           "request": {
             "method": "POST",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
@@ -135,6 +158,204 @@
                   "",
                   "const json = pm.response.json();",
                   "pm.collectionVariables.set('accessToken', json.accessToken);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Flow (passo a passo)",
+      "item": [
+        {
+          "name": "01 Login (ADMIN) -> set accessToken",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@soulmais.local\",\n  \"password\": \"Admin@12345\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', json.accessToken);",
+                  "pm.collectionVariables.set('refreshToken', json.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 List participants -> set participantId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/participants"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.expect(json.participants).to.be.an('array');",
+                  "",
+                  "const p = json.participants[0];",
+                  "pm.expect(p && p.id).to.be.a('string');",
+                  "pm.collectionVariables.set('participantId', p.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Periods current -> set periodKey (weekKey)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/periods/current"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.expect(json.weekKey).to.be.a('string');",
+                  "pm.collectionVariables.set('periodKey', json.weekKey);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 List activities -> set activityId (period=SEMANAL)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/activities"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.expect(json.activities).to.be.an('array');",
+                  "",
+                  "const list = json.activities || [];",
+                  "const a = list.find((x) => x && (x.period === 'SEMANAL' || x.period === 'WEEK')) || list[0];",
+                  "pm.expect(a && a.id).to.be.a('string');",
+                  "pm.collectionVariables.set('activityId', a.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Upsert completion -> CONCLUIDA",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"participantId\": \"{{participantId}}\",\n  \"activityId\": \"{{activityId}}\",\n  \"periodKey\": \"{{periodKey}}\",\n  \"status\": \"CONCLUIDA\",\n  \"note\": \"Marcado via Postman\",\n  \"evidenceUrl\": \"https://example.com/comprovante\"\n}"
+            },
+            "url": "{{baseUrl}}/api/completions"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.expect(json.completion).to.be.an('object');",
+                  "pm.expect(json.completion.status).to.eql('CONCLUIDA');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 Ranking -> GET /api/reports/ranking?periodKey={{periodKey}}",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reports/ranking?periodKey={{periodKey}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.expect(json.ranking).to.be.an('array');"
                 ]
               }
             }
@@ -193,6 +414,10 @@
               {
                 "key": "Authorization",
                 "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "body": {
@@ -226,6 +451,10 @@
               {
                 "key": "Authorization",
                 "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "body": {
@@ -304,6 +533,10 @@
               {
                 "key": "Authorization",
                 "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "body": {
