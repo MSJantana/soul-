@@ -17,7 +17,6 @@ export default function Reports() {
   const auth = getAuth();
 
   const [status, setStatus] = useState("idle");
-  const [error, setError] = useState("");
 
   const [periods, setPeriods] = useState(null);
   const [scope, setScope] = useState("QUARTER");
@@ -39,7 +38,6 @@ export default function Reports() {
 
   const loadBase = useCallback(async () => {
     setStatus("loading");
-    setError("");
     try {
       const keys = await apiFetch("/api/periods/current");
       setPeriods(keys);
@@ -52,9 +50,8 @@ export default function Reports() {
         setParticipants([]);
       }
       setStatus("success");
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }, [isManager]);
 
@@ -83,20 +80,17 @@ export default function Reports() {
   const loadRanking = useCallback(async () => {
     if (!isManager) return;
     setStatus("loading");
-    setError("");
     try {
       const res = await apiFetch(`/api/reports/ranking?periodKey=${encodeURIComponent(periodKey || "")}`);
       setRanking(res.ranking || []);
       setStatus("success");
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }, [isManager, periodKey]);
 
   const loadReport = useCallback(async () => {
     setStatus("loading");
-    setError("");
     try {
       if (isParticipant) {
         const res = await apiFetch(`/api/reports/me?periodKey=${encodeURIComponent(periodKey || "")}`);
@@ -108,9 +102,8 @@ export default function Reports() {
         setReportCompletions([]);
       }
       setStatus("success");
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }, [isParticipant, isManager, periodKey, selectedParticipantId]);
 
@@ -118,8 +111,6 @@ export default function Reports() {
     <AppShell active="reports">
       <div className="pageHeading">Relatórios</div>
       <div className="pageSubheading">Ranking e desempenho por período</div>
-
-      {error ? <div className="error">{error}</div> : null}
 
         <section className="panel">
           <div className="panelHeader">
@@ -195,7 +186,7 @@ export default function Reports() {
 
         <section className="panel">
           <div className="panelHeader">
-            <div className="panelTitle">Atividades x Participante</div>
+            <div className="panelTitle">Atividades x Grupo</div>
             {isManager ? (
               <select
                 className="select"

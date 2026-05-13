@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiFetch, getAuth } from "../api";
+import { apiFetch, getAuth, toastConfirm } from "../api";
 import AppShell from "../components/AppShell";
 import Icon from "../components/Icon";
 
@@ -24,16 +24,20 @@ function dateLabel(value) {
 export default function Participants() {
   const navigate = useNavigate();
   const auth = getAuth();
+  const isAdmin = auth?.user?.role === "ADMIN";
 
   const [items, setItems] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [status, setStatus] = useState("idle");
-  const [error, setError] = useState("");
 
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [guardianName, setGuardianName] = useState("");
   const [phone, setPhone] = useState("");
+  const [church, setChurch] = useState("");
+  const [groupId, setGroupId] = useState("");
+  const [isLeader, setIsLeader] = useState(false);
   const [createLogin, setCreateLogin] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -47,6 +51,9 @@ export default function Participants() {
   const [editBirthDate, setEditBirthDate] = useState("");
   const [editGuardianName, setEditGuardianName] = useState("");
   const [editPhone, setEditPhone] = useState("");
+  const [editChurch, setEditChurch] = useState("");
+  const [editGroupId, setEditGroupId] = useState("");
+  const [editIsLeader, setEditIsLeader] = useState(false);
 
   useEffect(() => {
     if (!auth?.accessToken) {
@@ -61,14 +68,13 @@ export default function Participants() {
 
   const load = useCallback(async () => {
     setStatus("loading");
-    setError("");
     try {
-      const res = await apiFetch("/api/participants");
-      setItems(res.participants || []);
+      const [p, g] = await Promise.all([apiFetch("/api/participants"), apiFetch("/api/groups")]);
+      setItems(p.participants || []);
+      setGroups(g.groups || []);
       setStatus("success");
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }, []);
 
@@ -129,6 +135,10 @@ export default function Participants() {
     setEditBirthDate(p.birthDate ? dateLabel(p.birthDate) : "");
     setEditGuardianName(p.guardianName || "");
     setEditPhone(p.phone || "");
+    setEditChurch(p.church || "");
+    const currentGroupId = p.groups?.[0]?.groupId || p.groups?.[0]?.group?.id || "";
+    setEditGroupId(currentGroupId);
+    setEditIsLeader(!!p.isLeader);
   }
 
   function cancelEdit() {
@@ -137,12 +147,14 @@ export default function Participants() {
     setEditBirthDate("");
     setEditGuardianName("");
     setEditPhone("");
+    setEditChurch("");
+    setEditGroupId("");
+    setEditIsLeader(false);
   }
 
   async function saveEdit() {
     if (!editingId) return;
     setStatus("loading");
-    setError("");
     try {
       await apiFetch(`/api/participants/${editingId}`, {
         method: "PUT",
@@ -151,42 +163,46 @@ export default function Participants() {
           birthDate: editBirthDate ? toIsoDateTimeOrUndefined(editBirthDate) : null,
           guardianName: editGuardianName || null,
           phone: editPhone || null,
+          church: editChurch || null,
+          groupId: editGroupId || null,
+          isLeader: isAdmin ? !!editIsLeader : undefined,
         }),
       });
       cancelEdit();
       await load();
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }
 
   async function remove(participant) {
-    const ok = globalThis.confirm(`Excluir participante "${participant?.name || ""}"? Essa ação não pode ser desfeita.`);
+    const ok = await toastConfirm(`Excluir participante "${participant?.name || ""}"? Essa ação não pode ser desfeita.`, {
+      confirmText: "Excluir",
+    });
     if (!ok) return;
     setStatus("loading");
-    setError("");
     try {
       await apiFetch(`/api/participants/${participant.id}`, { method: "DELETE" });
       cancelEdit();
       await load();
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }
 
   async function create() {
     setStatus("loading");
-    setError("");
     try {
       const payload = {
         name,
         birthDate: toIsoDateTimeOrUndefined(birthDate),
         guardianName: guardianName || undefined,
         phone: phone || undefined,
+        church: church || undefined,
+        groupId: groupId || undefined,
+        isLeader: isAdmin ? !!isLeader : undefined,
       };
-      if (createLogin) {
+      if (isAdmin && createLogin) {
         payload.email = email;
         payload.password = password;
       }
@@ -195,31 +211,48 @@ export default function Participants() {
       setBirthDate("");
       setGuardianName("");
       setPhone("");
+      setChurch("");
+      setGroupId("");
+      setIsLeader(false);
       setCreateLogin(false);
       setEmail("");
       setPassword("");
       setCreateOpen(false);
       setPage(1);
       await load();
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }
 
-  const canCreate = !!name && (!createLogin || (email && password && password.length >= 8));
+  const canCreate = !!name && (!isAdmin || !createLogin || (email && password && password.length >= 8));
 
   return (
     <AppShell active="participants">
       <div className="pageHeading">Cadastro de Participantes</div>
       <div className="pageSubheading">Crie e edite perfis de participantes</div>
 
-      {error ? <div className="error">{error}</div> : null}
-
-        <section className="panel">
+        <section
+          className="panel"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
+            maxHeight: "calc(100vh - 140px)",
+            overflow: createOpen ? "auto" : "hidden",
+          }}
+        >
           <div className="panelHeader">
             <div className="panelTitle">Participantes</div>
-            <button type="button" className="btnPrimary" onClick={() => setCreateOpen((v) => !v)}>
+            <button
+              type="button"
+              className="btnPrimary"
+              onClick={() => {
+                const next = !createOpen;
+                setCreateOpen(next);
+                if (next) setGroupId("");
+              }}
+            >
               <span className="btnIcon" aria-hidden="true">
                 <Icon name="plus" />
               </span>
@@ -229,7 +262,15 @@ export default function Participants() {
 
           {createOpen ? (
             <div style={{ marginBottom: 12 }}>
-              <div className="filtersGrid" style={{ gridTemplateColumns: "1.2fr 1fr 1fr" }}>
+              <div
+                className="filtersGrid compactFilters"
+                style={{
+                  gridTemplateColumns:
+                    "minmax(260px, 1.8fr) minmax(220px, 1.2fr) minmax(200px, 1.2fr) minmax(200px, 1.2fr)",
+                  alignItems: "end",
+                  gap: 10,
+                }}
+              >
                 <div className="filter">
                   <label htmlFor="createName">Nome</label>
                   <input
@@ -241,13 +282,24 @@ export default function Participants() {
                   />
                 </div>
                 <div className="filter">
-                  <label htmlFor="createBirthDate">Data de nascimento</label>
+                  <label htmlFor="createGroup">Grupo</label>
+                  <select id="createGroup" className="select" value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+                    <option value="">Selecione...</option>
+                    {groups.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name} {g.year ? `(${g.year})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="filter">
+                  <label htmlFor="createChurch">Igreja</label>
                   <input
-                    id="createBirthDate"
+                    id="createChurch"
                     className="input"
-                    type="date"
-                    value={birthDate}
-                    onChange={(e) => setBirthDate(e.target.value)}
+                    value={church}
+                    onChange={(e) => setChurch(e.target.value)}
+                    placeholder="Nome da igreja"
                   />
                 </div>
                 <div className="filter">
@@ -262,7 +314,20 @@ export default function Participants() {
                 </div>
               </div>
 
-              <div className="filtersGrid" style={{ gridTemplateColumns: "2fr 1fr 1fr" }}>
+              <div
+                className="filtersGrid compactFilters"
+                style={{ gridTemplateColumns: "minmax(200px, 0.9fr) minmax(260px, 2fr) minmax(320px, 1.2fr)", alignItems: "end", gap: 10 }}
+              >
+                <div className="filter">
+                  <label htmlFor="createBirthDate">Data de nascimento</label>
+                  <input
+                    id="createBirthDate"
+                    className="input"
+                    type="date"
+                    value={birthDate}
+                    onChange={(e) => setBirthDate(e.target.value)}
+                  />
+                </div>
                 <div className="filter">
                   <label htmlFor="createGuardian">Responsável</label>
                   <input
@@ -273,17 +338,23 @@ export default function Participants() {
                     placeholder="Nome do responsável (opcional)"
                   />
                 </div>
-                <div className="filter" style={{ display: "flex", alignItems: "end" }}>
-                  <label className="toggle" style={{ gap: 8 }}>
-                    <input
-                      type="checkbox"
-                      checked={!!createLogin}
-                      onChange={(e) => setCreateLogin(e.target.checked)}
-                    />
-                    <span>Criar login</span>
-                  </label>
-                </div>
                 <div className="filter" style={{ display: "flex", alignItems: "end", gap: 10, justifyContent: "end" }}>
+                  {isAdmin ? (
+                    <>
+                      <label className="toggle" style={{ gap: 8 }}>
+                        <input type="checkbox" checked={!!isLeader} onChange={(e) => setIsLeader(e.target.checked)} />
+                        <span>Líder</span>
+                      </label>
+                      <label className="toggle" style={{ gap: 8 }}>
+                        <input
+                          type="checkbox"
+                          checked={!!createLogin}
+                          onChange={(e) => setCreateLogin(e.target.checked)}
+                        />
+                        <span>Criar login</span>
+                      </label>
+                    </>
+                  ) : null}
                   <button type="button" className="btnPrimary" disabled={!canCreate || status === "loading"} onClick={create}>
                     <span className="btnIcon" aria-hidden="true">
                       <Icon name="check" />
@@ -299,7 +370,7 @@ export default function Participants() {
                 </div>
               </div>
 
-              {createLogin ? (
+              {isAdmin && createLogin ? (
                 <div className="filtersGrid" style={{ gridTemplateColumns: "1.3fr 1fr 1fr" }}>
                   <div className="filter">
                     <label htmlFor="createEmail">Email</label>
@@ -326,14 +397,21 @@ export default function Participants() {
                     />
                   </div>
                   <div className="filter" style={{ display: "flex", alignItems: "end", justifyContent: "end" }}>
-                    <span className="hint">Role do login: PARTICIPANTE</span>
+                    <span className="hint">Role do login: {isLeader ? "LIDER" : "PARTICIPANTE"}</span>
                   </div>
                 </div>
               ) : null}
             </div>
           ) : null}
 
-          <div className="filtersGrid">
+          <div
+            className="filtersGrid compactFilters"
+            style={{
+              gridTemplateColumns: "minmax(260px, 2.2fr) minmax(160px, 0.9fr) auto",
+              alignItems: "end",
+              gap: 10,
+            }}
+          >
             <div className="filter">
               <label htmlFor="searchQuery">Filtrar por nome, telefone ou responsável</label>
               <input
@@ -376,14 +454,15 @@ export default function Participants() {
             </div>
           </div>
 
-          <div className="tableWrap">
+          <div className="tableWrap" style={{ flex: "1 1 auto", minHeight: 0 }}>
             <table className="table">
               <thead>
                 <tr>
                   <th style={{ width: 260, textAlign: "center" }}>Nome</th>
-                  <th style={{ width: 130, textAlign: "center" }}>Nascimento</th>
-                  <th style={{ width: 220, textAlign: "center" }}>Responsável</th>
+                  <th style={{ width: 220, textAlign: "center" }}>Grupo</th>
+                  <th style={{ width: 220, textAlign: "center" }}>Igreja</th>
                   <th style={{ width: 160, textAlign: "center" }}>Telefone</th>
+                  <th style={{ width: 120, textAlign: "center" }}>Líder</th>
                   <th style={{ width: 120, textAlign: "center" }}>Login</th>
                   <th style={{ width: 220, textAlign: "center" }}>Ações</th>
                 </tr>
@@ -395,9 +474,10 @@ export default function Participants() {
                       <td style={{ textAlign: "center" }}>
                         <div style={{ fontWeight: 700 }}>{p.name}</div>
                       </td>
-                      <td style={{ textAlign: "center" }}>{p.birthDate ? dateLabel(p.birthDate) : "-"}</td>
-                      <td style={{ textAlign: "center" }}>{p.guardianName || "-"}</td>
+                      <td style={{ textAlign: "center" }}>{p.groups?.[0]?.group ? `${p.groups[0].group.name}${p.groups[0].group.year ? ` (${p.groups[0].group.year})` : ""}` : "-"}</td>
+                      <td style={{ textAlign: "center" }}>{p.church || "-"}</td>
                       <td style={{ textAlign: "center" }}>{p.phone || "-"}</td>
+                      <td style={{ textAlign: "center" }}>{p.isLeader ? "SIM" : "NÃO"}</td>
                       <td style={{ textAlign: "center" }}>{p.userId ? "SIM" : "NÃO"}</td>
                       <td style={{ textAlign: "center" }}>
                         <div className="actionsRow">
@@ -429,12 +509,34 @@ export default function Participants() {
 
                     {editingId === p.id ? (
                       <tr>
-                        <td colSpan={6}>
-                          <div className="filtersGrid" style={{ gridTemplateColumns: "1.2fr 1fr 1fr" }}>
+                        <td colSpan={7}>
+                          <div className="filtersGrid" style={{ gridTemplateColumns: "1.4fr 1fr 1fr 1fr" }}>
                             <div className="filter">
                               <label htmlFor="editName">Nome</label>
                               <input id="editName" className="input" value={editName} onChange={(e) => setEditName(e.target.value)} />
                             </div>
+                            <div className="filter">
+                              <label htmlFor="editGroup">Grupo</label>
+                              <select id="editGroup" className="select" value={editGroupId} onChange={(e) => setEditGroupId(e.target.value)}>
+                                <option value="">Selecione...</option>
+                                {groups.map((g) => (
+                                  <option key={g.id} value={g.id}>
+                                    {g.name} {g.year ? `(${g.year})` : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="filter">
+                              <label htmlFor="editChurch">Igreja</label>
+                              <input id="editChurch" className="input" value={editChurch} onChange={(e) => setEditChurch(e.target.value)} />
+                            </div>
+                            <div className="filter">
+                              <label htmlFor="editPhone">Telefone</label>
+                              <input id="editPhone" className="input" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+                            </div>
+                          </div>
+
+                          <div className="filtersGrid" style={{ gridTemplateColumns: "1fr 2fr 1fr" }}>
                             <div className="filter">
                               <label htmlFor="editBirthDate">Data de nascimento</label>
                               <input
@@ -446,13 +548,6 @@ export default function Participants() {
                               />
                             </div>
                             <div className="filter">
-                              <label htmlFor="editPhone">Telefone</label>
-                              <input id="editPhone" className="input" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
-                            </div>
-                          </div>
-
-                          <div className="filtersGrid" style={{ gridTemplateColumns: "2fr 1fr 1fr" }}>
-                            <div className="filter">
                               <label htmlFor="editGuardian">Responsável</label>
                               <input
                                 id="editGuardian"
@@ -461,8 +556,13 @@ export default function Participants() {
                                 onChange={(e) => setEditGuardianName(e.target.value)}
                               />
                             </div>
-                            <div className="filter" />
                             <div className="filter" style={{ display: "flex", alignItems: "end", gap: 10, justifyContent: "end" }}>
+                              {isAdmin ? (
+                                <label className="toggle" style={{ gap: 8 }}>
+                                  <input type="checkbox" checked={!!editIsLeader} onChange={(e) => setEditIsLeader(e.target.checked)} />
+                                  <span>Líder</span>
+                                </label>
+                              ) : null}
                               <button
                                 type="button"
                                 className="btnPrimary"

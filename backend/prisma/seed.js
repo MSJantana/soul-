@@ -237,11 +237,15 @@ async function seedDatabase(prisma) {
       name: "Líder (Seed)",
       guardianName: "Igreja",
       phone: "(00) 00000-0000",
+      church: "Igreja (Seed)",
+      isLeader: true,
     },
     update: {
       name: "Líder (Seed)",
       guardianName: "Igreja",
       phone: "(00) 00000-0000",
+      church: "Igreja (Seed)",
+      isLeader: true,
     },
     select: { id: true, name: true },
   });
@@ -253,11 +257,15 @@ async function seedDatabase(prisma) {
       name: "Participante (Seed)",
       guardianName: "Responsável (Seed)",
       phone: "(00) 00000-0000",
+      church: "Igreja (Seed)",
+      isLeader: false,
     },
     update: {
       name: "Participante (Seed)",
       guardianName: "Responsável (Seed)",
       phone: "(00) 00000-0000",
+      church: "Igreja (Seed)",
+      isLeader: false,
     },
     select: { id: true, name: true },
   });

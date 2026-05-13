@@ -7,6 +7,13 @@ async function getSelfParticipantId(prisma, userId) {
   return participant ? participant.id : null;
 }
 
+async function getLeaderGroupIds(prisma, userId) {
+  const selfId = await getSelfParticipantId(prisma, userId);
+  if (!selfId) return [];
+  const memberships = await prisma.groupMember.findMany({ where: { participantId: selfId }, select: { groupId: true } });
+  return memberships.map((m) => m.groupId).filter(Boolean);
+}
+
 function registerCompletionRoutes(app, prisma) {
   app.get("/api/completions", requireAuth, async (req, res) => {
     const schema = z.object({
@@ -36,6 +43,18 @@ function registerCompletionRoutes(app, prisma) {
       return;
     }
 
+    if (req.auth.role === "LIDER") {
+      const leaderGroupIds = await getLeaderGroupIds(prisma, req.auth.userId);
+      const allowed = await prisma.groupMember.findFirst({
+        where: { participantId, groupId: { in: leaderGroupIds } },
+        select: { id: true },
+      });
+      if (!allowed) {
+        res.status(403).json({ error: "FORBIDDEN" });
+        return;
+      }
+    }
+
     const completions = await prisma.completion.findMany({
       where: {
         participantId,
@@ -55,7 +74,7 @@ function registerCompletionRoutes(app, prisma) {
       periodKey: z.string().min(1),
       status: z.enum(["PENDENTE", "CONCLUIDA"]),
       note: z.string().min(1).optional(),
-      evidenceUrl: z.string().url().optional(),
+      evidenceUrl: z.url().optional(),
     });
 
     const parsed = schema.safeParse(req.body);
@@ -73,6 +92,18 @@ function registerCompletionRoutes(app, prisma) {
         return;
       }
       if (selfId !== participantId) {
+        res.status(403).json({ error: "FORBIDDEN" });
+        return;
+      }
+    }
+
+    if (req.auth.role === "LIDER") {
+      const leaderGroupIds = await getLeaderGroupIds(prisma, req.auth.userId);
+      const allowed = await prisma.groupMember.findFirst({
+        where: { participantId, groupId: { in: leaderGroupIds } },
+        select: { id: true },
+      });
+      if (!allowed) {
         res.status(403).json({ error: "FORBIDDEN" });
         return;
       }
@@ -111,4 +142,3 @@ function registerCompletionRoutes(app, prisma) {
 }
 
 module.exports = { registerCompletionRoutes };
-

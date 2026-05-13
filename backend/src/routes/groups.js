@@ -2,9 +2,29 @@ const { z } = require("zod");
 
 const { requireAuth, requireRole } = require("../middleware/auth");
 
+async function getSelfParticipantId(prisma, userId) {
+  const participant = await prisma.participant.findUnique({ where: { userId }, select: { id: true } });
+  return participant?.id || null;
+}
+
+async function getLeaderGroupIds(prisma, userId) {
+  const selfId = await getSelfParticipantId(prisma, userId);
+  if (!selfId) return [];
+  const memberships = await prisma.groupMember.findMany({ where: { participantId: selfId }, select: { groupId: true } });
+  return memberships.map((m) => m.groupId).filter(Boolean);
+}
+
 function registerGroupRoutes(app, prisma) {
   app.get("/api/groups", requireAuth, requireRole(["ADMIN", "LIDER"]), async (req, res) => {
+    const where =
+      req.auth.role === "LIDER"
+        ? {
+            id: { in: await getLeaderGroupIds(prisma, req.auth.userId) },
+          }
+        : undefined;
+
     const groups = await prisma.group.findMany({
+      where,
       orderBy: [{ isActive: "desc" }, { name: "asc" }],
       include: { members: { include: { participant: true } } },
     });
@@ -13,6 +33,11 @@ function registerGroupRoutes(app, prisma) {
   });
 
   app.post("/api/groups", requireAuth, requireRole(["ADMIN", "LIDER"]), async (req, res) => {
+    if (req.auth.role !== "ADMIN") {
+      res.status(403).json({ error: "FORBIDDEN" });
+      return;
+    }
+
     const schema = z.object({
       name: z.string().min(1),
       year: z.number().int().optional(),
@@ -41,6 +66,14 @@ function registerGroupRoutes(app, prisma) {
     requireAuth,
     requireRole(["ADMIN", "LIDER"]),
     async (req, res) => {
+      if (req.auth.role === "LIDER") {
+        const ids = await getLeaderGroupIds(prisma, req.auth.userId);
+        if (!ids.includes(req.params.groupId)) {
+          res.status(403).json({ error: "FORBIDDEN" });
+          return;
+        }
+      }
+
       const schema = z.object({
         participantId: z.string().min(1),
       });
@@ -67,6 +100,14 @@ function registerGroupRoutes(app, prisma) {
     requireAuth,
     requireRole(["ADMIN", "LIDER"]),
     async (req, res) => {
+      if (req.auth.role === "LIDER") {
+        const ids = await getLeaderGroupIds(prisma, req.auth.userId);
+        if (!ids.includes(req.params.groupId)) {
+          res.status(403).json({ error: "FORBIDDEN" });
+          return;
+        }
+      }
+
       await prisma.groupMember.delete({
         where: {
           groupId_participantId: {
@@ -82,4 +123,3 @@ function registerGroupRoutes(app, prisma) {
 }
 
 module.exports = { registerGroupRoutes };
-

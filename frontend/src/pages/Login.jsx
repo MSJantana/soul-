@@ -104,14 +104,14 @@ export default function Login() {
         <button type="button" className="loginPrintPrimary" disabled={status === "loading"} onClick={handleLogin}>
           ENTRAR
         </button>
-
+  {/* 
         <div className="loginPrintDivider">
           <span>OR</span>
         </div>
 
         <button type="button" className="loginPrintSecondary" onClick={(e) => e.preventDefault()}>
           Esqueci minha senha
-        </button>
+        </button> */}
       </div>
     </div>
   );

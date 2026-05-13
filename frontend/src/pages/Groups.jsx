@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiFetch, getAuth } from "../api";
+import { apiFetch, getAuth, toastConfirm } from "../api";
 import AppShell from "../components/AppShell";
 import Icon from "../components/Icon";
 
@@ -11,7 +11,6 @@ export default function Groups() {
   const [groups, setGroups] = useState([]);
   const [participants, setParticipants] = useState([]);
   const [status, setStatus] = useState("idle");
-  const [error, setError] = useState("");
 
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
@@ -39,15 +38,13 @@ export default function Groups() {
 
   const load = useCallback(async () => {
     setStatus("loading");
-    setError("");
     try {
       const [g, p] = await Promise.all([apiFetch("/api/groups"), apiFetch("/api/participants")]);
       setGroups(g.groups || []);
       setParticipants(p.participants || []);
       setStatus("success");
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }, []);
 
@@ -108,7 +105,6 @@ export default function Groups() {
 
   async function createGroup() {
     setStatus("loading");
-    setError("");
     try {
       const y = year.trim() ? Number(year) : undefined;
       await apiFetch("/api/groups", {
@@ -121,39 +117,34 @@ export default function Groups() {
       setCreateOpen(false);
       setPage(1);
       await load();
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }
 
   async function addMember(groupId) {
     if (!memberToAdd) return;
     setStatus("loading");
-    setError("");
     try {
       await apiFetch(`/api/groups/${groupId}/members`, { method: "POST", body: JSON.stringify({ participantId: memberToAdd }) });
       setMemberToAdd("");
       await load();
       setExpandedId(groupId);
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }
 
   async function removeMember(groupId, participantId) {
-    const ok = globalThis.confirm("Remover participante do grupo?");
+    const ok = await toastConfirm("Remover participante do grupo?", { confirmText: "Remover" });
     if (!ok) return;
     setStatus("loading");
-    setError("");
     try {
       await apiFetch(`/api/groups/${groupId}/members/${participantId}`, { method: "DELETE" });
       await load();
       setExpandedId(groupId);
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }
 
@@ -164,9 +155,16 @@ export default function Groups() {
       <div className="pageHeading">Grupos</div>
       <div className="pageSubheading">Gerencie grupos e participantes</div>
 
-      {error ? <div className="error">{error}</div> : null}
-
-        <section className="panel">
+        <section
+          className="panel"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
+            maxHeight: "calc(100vh - 140px)",
+            overflow: createOpen || !!expandedId ? "auto" : "hidden",
+          }}
+        >
           <div className="panelHeader">
             <div className="panelTitle">Grupos</div>
             <button type="button" className="btnPrimary" onClick={() => setCreateOpen((v) => !v)} disabled={!canManage}>
@@ -210,7 +208,14 @@ export default function Groups() {
             </div>
           ) : null}
 
-          <div className="filtersGrid">
+          <div
+            className="filtersGrid compactFilters"
+            style={{
+              gridTemplateColumns: "minmax(260px, 2.2fr) minmax(140px, 0.9fr) minmax(160px, 0.8fr) auto",
+              alignItems: "end",
+              gap: 10,
+            }}
+          >
             <div className="filter">
               <label htmlFor="searchGroup">Filtrar por nome/ano</label>
               <input
@@ -240,8 +245,10 @@ export default function Groups() {
                 <option value="INACTIVE">Inativos</option>
               </select>
             </div>
-            <div className="filter" style={{ display: "flex", alignItems: "end", gap: 10, justifyContent: "end" }}>
+            <div className="filter">
+              <label htmlFor="pageSize">Itens por página</label>
               <select
+                id="pageSize"
                 className="select"
                 value={String(pageSize)}
                 onChange={(e) => {
@@ -255,6 +262,8 @@ export default function Groups() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="filter" style={{ display: "flex", alignItems: "end", gap: 10, justifyContent: "end" }}>
               <button type="button" className="pageBtn" disabled={status === "loading"} onClick={load}>
                 <span className="btnIcon" aria-hidden="true">
                   <Icon name="refresh" />
@@ -265,7 +274,7 @@ export default function Groups() {
             </div>
           </div>
 
-          <div className="tableWrap">
+          <div className="tableWrap" style={{ flex: "1 1 auto", minHeight: 0 }}>
             <table className="table">
               <thead>
                 <tr>

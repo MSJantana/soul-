@@ -9,7 +9,6 @@ export default function Completions() {
   const auth = getAuth();
 
   const [status, setStatus] = useState("idle");
-  const [error, setError] = useState("");
 
   const [participants, setParticipants] = useState([]);
   const [selectedParticipantId, setSelectedParticipantId] = useState("");
@@ -33,7 +32,6 @@ export default function Completions() {
   const loadBase = useCallback(async () => {
     if (!isManager) return;
     setStatus("loading");
-    setError("");
     try {
       const [p, keys] = await Promise.all([apiFetch("/api/participants"), apiFetch("/api/periods/current")]);
       setParticipants(p.participants || []);
@@ -41,9 +39,8 @@ export default function Completions() {
       setScope("WEEK");
       setPeriodKey(keys.weekKey);
       setStatus("success");
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }, [isManager]);
 
@@ -72,7 +69,6 @@ export default function Completions() {
   const loadRows = useCallback(async () => {
     if (!selectedParticipantId || !periodKey) return;
     setStatus("loading");
-    setError("");
     try {
       const res = await apiFetch(`/api/completions?participantId=${encodeURIComponent(selectedParticipantId)}&periodKey=${encodeURIComponent(periodKey)}`);
       const list = (res.completions || []).map((c) => ({
@@ -87,15 +83,13 @@ export default function Completions() {
       }));
       setRows(list);
       setStatus("success");
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }, [periodKey, selectedParticipantId]);
 
   async function saveRow(row) {
     setStatus("loading");
-    setError("");
     try {
       const payload = {
         participantId: row.participantId,
@@ -108,9 +102,8 @@ export default function Completions() {
 
       await apiFetch("/api/completions", { method: "PUT", body: JSON.stringify(payload) });
       await loadRows();
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }
 
@@ -120,8 +113,6 @@ export default function Completions() {
     <AppShell active="completions">
       <div className="pageHeading">Conclusões</div>
       <div className="pageSubheading">Gerencie completões por participante e período</div>
-
-      {error ? <div className="error">{error}</div> : null}
 
       <section className="panel">
         <div className="panelHeader">

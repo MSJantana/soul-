@@ -49,7 +49,6 @@ export default function Activities() {
 
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState("idle");
-  const [error, setError] = useState("");
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -87,14 +86,12 @@ export default function Activities() {
 
   const load = useCallback(async () => {
     setStatus("loading");
-    setError("");
     try {
       const res = await apiFetch("/api/activities?includeInactive=1");
       setItems(res.activities || []);
       setStatus("success");
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }, []);
 
@@ -201,7 +198,6 @@ export default function Activities() {
 
   async function create() {
     setStatus("loading");
-    setError("");
     try {
       await apiFetch("/api/activities", {
         method: "POST",
@@ -215,33 +211,28 @@ export default function Activities() {
       setPage(1);
       setCreateOpen(false);
       await load();
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }
 
   async function update(id, patch) {
     setStatus("loading");
-    setError("");
     try {
       await apiFetch(`/api/activities/${id}`, { method: "PUT", body: JSON.stringify(patch) });
       await load();
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }
 
   async function deactivate(id) {
     setStatus("loading");
-    setError("");
     try {
       await apiFetch(`/api/activities/${id}`, { method: "DELETE" });
       await load();
-    } catch (e) {
+    } catch {
       setStatus("error");
-      setError(e?.body?.error || e?.message || String(e));
     }
   }
 
@@ -250,9 +241,16 @@ export default function Activities() {
       <div className="pageHeading">Bem-vindo, {displayName}</div>
       <div className="pageSubheading">Gestão de Atividades</div>
 
-      {error ? <div className="error">{error}</div> : null}
-
-        <section className="panel">
+        <section
+          className="panel"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
+            maxHeight: "calc(100vh - 140px)",
+            overflow: createOpen ? "auto" : "hidden",
+          }}
+        >
           <div className="panelHeader">
             <div className="panelTitle">Atividades</div>
             <button type="button" className="btnPrimary" onClick={() => setCreateOpen((v) => !v)}>
@@ -344,7 +342,15 @@ export default function Activities() {
             </div>
           ) : null}
 
-          <div className="filtersGrid">
+          <div
+            className="filtersGrid compactFilters"
+            style={{
+              gridTemplateColumns:
+                "minmax(260px, 2.2fr) minmax(140px, 0.8fr) minmax(120px, 0.6fr) minmax(160px, 0.9fr) minmax(180px, 1fr) auto",
+              alignItems: "end",
+              gap: 10,
+            }}
+          >
             <div className="filter">
               <label htmlFor="searchQuery">Filtrar por título, descrição ou slug</label>
               <input
@@ -392,9 +398,6 @@ export default function Activities() {
                 ))}
               </select>
             </div>
-          </div>
-
-          <div className="filtersGrid" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
             <div className="filter">
               <label htmlFor="filterPeriod">Período</label>
               <select
@@ -444,7 +447,7 @@ export default function Activities() {
             </div>
           </div>
 
-          <div className="tableWrap">
+          <div className="tableWrap" style={{ flex: "1 1 auto", minHeight: 0 }}>
             <table className="table">
               <thead>
                 <tr>

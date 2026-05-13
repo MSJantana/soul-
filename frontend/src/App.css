@@ -370,6 +370,20 @@
   margin-bottom: 12px;
 }
 
+.compactFilters {
+  margin-bottom: 10px;
+}
+
+.compactFilters label {
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.compactFilters .input,
+.compactFilters .select {
+  height: 32px;
+}
+
 .filter label {
   display: block;
   font-size: 12px;
@@ -871,7 +885,7 @@ button:disabled {
 }
 
 .Toastify__toast-container {
-  width: 360px;
+  width: min(360px, calc(100vw - 24px));
 }
 
 .Toastify__toast {
@@ -935,6 +949,136 @@ button:disabled {
 
 .Toastify__toast--info {
   border-left: 6px solid #3b82f6;
+}
+
+@media (max-width: 1024px) {
+  .actionsRow button {
+    min-width: 78px;
+  }
+}
+
+@media (max-width: 900px) {
+  .content {
+    padding: 16px 12px 22px;
+  }
+
+  .navLinks {
+    overflow: auto;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .navLinks::-webkit-scrollbar {
+    height: 0;
+  }
+
+  .navLink {
+    padding: 0 10px;
+  }
+
+  .userName {
+    display: none;
+  }
+
+  .filtersGrid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .panelHeader {
+    flex-wrap: wrap;
+  }
+
+  .panelFooter {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    height: auto;
+  }
+
+  .topbarInner {
+    flex-wrap: wrap;
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .brand {
+    order: 1;
+  }
+
+  .topbarRight {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .navLinks {
+    order: 3;
+    flex: 0 0 100%;
+    width: 100%;
+    gap: 8px;
+    padding-bottom: 4px;
+  }
+
+  .navLinks .navLink {
+    padding: 0 10px;
+  }
+
+  .navLinks .navLink > span:not(.btnIcon) {
+    display: none;
+  }
+
+  .panel {
+    padding: 12px;
+  }
+
+  .panelHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .panelFooter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pagination {
+    justify-content: center;
+  }
+
+  .filtersGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .actionsRow {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .pageHeading {
+    font-size: 18px;
+  }
+
+  .panelTitle {
+    font-size: 16px;
+  }
+
+  .loginPrintPanel {
+    width: min(360px, 100%);
+  }
+
+  .loginPrintPage {
+    padding: 0 12px;
+  }
+
+  .loginPrintBlob {
+    left: -85vw;
+    top: -78vh;
+    width: 160vw;
+    height: 170vh;
+  }
 }
 
 .Toastify__toast--info .Toastify__toast-icon {

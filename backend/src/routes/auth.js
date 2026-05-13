@@ -98,7 +98,17 @@ function registerAuthRoutes(app, prisma) {
       return;
     }
 
-    const safeUser = { id: user.id, email: user.email, role: user.role };
+    let role = user.role;
+    if (role !== "ADMIN") {
+      const participant = await prisma.participant.findUnique({ where: { userId: user.id }, select: { isLeader: true } });
+      if (participant?.isLeader) role = "LIDER";
+      if (!participant?.isLeader && role === "LIDER") role = "PARTICIPANTE";
+      if (role !== user.role) {
+        await prisma.user.update({ where: { id: user.id }, data: { role } });
+      }
+    }
+
+    const safeUser = { id: user.id, email: user.email, role };
     const accessToken = signAccessToken(safeUser);
     const refreshToken = signRefreshToken(safeUser);
     logTokens(`login:${safeUser.email}`, { accessToken, refreshToken });
