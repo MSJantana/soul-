@@ -1,0 +1,13 @@
+{
+  "name": "soul-mais",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "build": "npm --workspace frontend run build",
+    "postinstall": "cd backend && npx prisma generate"
+  }
+}
+
