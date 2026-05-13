@@ -5,8 +5,10 @@
     "backend",
     "frontend"
   ],
+  "dependencies": {
+    "prisma": "^7.8.0"
+  },
   "scripts": {
-    "postinstall": "npm --workspace backend run prisma:generate"
+    "postinstall": "npx prisma generate --schema=backend/prisma/schema.prisma"
   }
 }
-
