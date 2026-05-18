@@ -1,0 +1,132 @@
+// generator client {
+//   provider = "prisma-client-js"
+// }
+
+// datasource db {
+//   provider = "postgresql"
+// }
+
+// enum UserRole_Postgres {
+//   ADMIN
+//   LIDER
+//   PARTICIPANTE
+// }
+
+// enum ActivityPeriod_Postgres {
+//   SEMANAL
+//   MES @map("MÊS")
+//   QUADRIENAL
+//   SEMESTRAL
+//   ANO
+// }
+
+// enum ActivityArea_Postgres {
+//   DISCIPLINAS
+//   CELEBRACAO
+//   LIDERANCA
+//   FAMILIA
+//   MISSAO_SOCIAL
+//   EVENTOS_IGREJA
+//   IDENTIDADE
+// }
+
+// enum CompletionStatus_Postgres {
+//   PENDENTE
+//   CONCLUIDA
+// }
+
+// model User_Postgres {
+//   id           String   @id @default(cuid())
+//   email        String   @unique
+//   passwordHash String
+//   role         UserRole_Postgres @default(PARTICIPANTE)
+
+//   participant  Participant_Postgres?
+
+//   createdAt    DateTime @default(now())
+//   updatedAt    DateTime @updatedAt
+// }
+
+// model Participant_Postgres {
+//   id           String   @id @default(cuid())
+//   userId       String?  @unique
+//   user         User_Postgres?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+//   name         String
+//   birthDate    DateTime?
+//   guardianName String?
+//   phone        String?
+//   church       String?
+//   isLeader     Boolean  @default(false)
+
+//   groups       GroupMember_Postgres[]
+
+//   createdAt    DateTime @default(now())
+//   updatedAt    DateTime @updatedAt
+// }
+
+// model Group_Postgres {
+//   id          String        @id @default(cuid())
+//   name        String
+//   year        Int?
+//   isActive    Boolean       @default(true)
+
+//   members     GroupMember_Postgres[]
+//   completions Completion_Postgres[]
+
+//   createdAt   DateTime      @default(now())
+//   updatedAt   DateTime      @updatedAt
+// }
+
+// model GroupMember_Postgres {
+//   id            String      @id @default(cuid())
+//   groupId       String
+//   participantId String
+
+//   group         Group_Postgres @relation(fields: [groupId], references: [id], onDelete: Cascade)
+//   participant   Participant_Postgres @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+//   createdAt     DateTime    @default(now())
+
+//   @@unique([groupId, participantId])
+// }
+
+// model Activity_Postgres {
+//   id          String         @id @default(cuid())
+//   slug        String         @unique
+//   title       String
+//   description String
+//   period      ActivityPeriod_Postgres
+//   area        ActivityArea_Postgres
+//   points      Int            @default(0)
+//   isActive    Boolean        @default(true)
+
+//   completions Completion_Postgres[]
+
+//   createdAt   DateTime       @default(now())
+//   updatedAt   DateTime       @updatedAt
+// }
+
+// model Completion_Postgres {
+//   id            String           @id @default(cuid())
+//   groupId       String
+//   activityId    String
+
+//   periodKey     String
+//   status        CompletionStatus_Postgres @default(PENDENTE)
+//   completedAt    DateTime?
+//   activityPeriod ActivityPeriod_Postgres?
+//   activityPoints Int?
+//   isValidated    Boolean         @default(false)
+//   validatedAt    DateTime?
+//   evidenceUrl    String?         @db.Text
+
+//   group         Group_Postgres @relation(fields: [groupId], references: [id], onDelete: Cascade)
+//   activity      Activity_Postgres @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+//   createdAt     DateTime         @default(now())
+//   updatedAt     DateTime         @updatedAt
+
+//   @@unique([groupId, activityId, periodKey])
+//   @@index([periodKey])
+// }

@@ -14,7 +14,7 @@ enum UserRole {
 
 enum ActivityPeriod {
   SEMANAL
-  MES @map("MÊS")
+  MES        @map("MÊS")
   QUADRIENAL
   SEMESTRAL
   ANO
@@ -41,54 +41,56 @@ model User {
   passwordHash String
   role         UserRole @default(PARTICIPANTE)
 
-  participant  Participant?
+  participant Participant?
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Participant {
-  id           String   @id @default(cuid())
-  userId       String?  @unique
-  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id     String  @id @default(cuid())
+  userId String? @unique
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   name         String
   birthDate    DateTime?
   guardianName String?
   phone        String?
   church       String?
-  isLeader     Boolean  @default(false)
+  isLeader     Boolean   @default(false)
 
-  groups       GroupMember[]
-  completions  Completion[]
+  groups GroupMember[]
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Group {
-  id          String        @id @default(cuid())
-  name        String
-  year        Int?
-  isActive    Boolean       @default(true)
+  id       String  @id @default(cuid())
+  name     String
+  year     Int?
+  isActive Boolean @default(true)
 
   members     GroupMember[]
+  completions Completion[]
 
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model GroupMember {
-  id            String      @id @default(cuid())
+  id            String @id @default(cuid())
   groupId       String
   participantId String
 
-  group         Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  group       Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
 
-  createdAt     DateTime    @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([groupId, participantId])
+  @@index([groupId])
+  @@index([participantId])
 }
 
 model Activity {
@@ -103,27 +105,36 @@ model Activity {
 
   completions Completion[]
 
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Completion {
-  id            String           @id @default(cuid())
-  participantId String
-  activityId    String
+  id         String @id @default(cuid())
+  groupId    String
+  activityId String
 
-  periodKey     String
-  status        CompletionStatus @default(PENDENTE)
-  completedAt   DateTime?
-  note          String?
-  evidenceUrl   String?
+  periodKey   String
+  status      CompletionStatus @default(PENDENTE)
+  completedAt DateTime?
 
-  participant   Participant      @relation(fields: [participantId], references: [id], onDelete: Cascade)
-  activity      Activity         @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  activityPeriod ActivityPeriod?
+  activityPoints Int?
 
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  isValidated Boolean   @default(false)
+  validatedAt DateTime?
 
-  @@unique([participantId, activityId, periodKey])
+  evidenceUrl String? @db.LongText
+
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([groupId, activityId, periodKey])
+  @@index([groupId])
+  @@index([activityId])
   @@index([periodKey])
+  @@index([isValidated])
 }

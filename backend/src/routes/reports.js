@@ -84,48 +84,7 @@ function sortRows(rows) {
 
 function registerReportRoutes(app, prisma) {
   app.get("/api/reports/ranking", requireAuth, requireRole(["ADMIN", "LIDER"]), async (req, res) => {
-    const schema = z.object({
-      periodKey: z.string().min(1).optional(),
-    });
-
-    const parsed = schema.safeParse(req.query);
-    if (!parsed.success) {
-      res.status(400).json({ error: "VALIDATION_ERROR" });
-      return;
-    }
-
-    const periodKey = parsed.data.periodKey || getPeriodKey(new Date(), "QUARTER");
-
-    const leaderGroupIds = req.auth.role === "LIDER" ? await getLeaderGroupIds(prisma, req.auth.userId) : [];
-    const completions = await prisma.completion.findMany({
-      where:
-        req.auth.role === "LIDER"
-          ? {
-              periodKey,
-              status: "CONCLUIDA",
-              participant: { groups: { some: { groupId: { in: leaderGroupIds } } } },
-            }
-          : { periodKey, status: "CONCLUIDA" },
-      include: {
-        activity: { select: { points: true } },
-        participant: { select: { id: true, name: true } },
-      },
-    });
-
-    const byParticipant = new Map();
-    for (const c of completions) {
-      const id = c.participant.id;
-      const current = byParticipant.get(id) || { participantId: id, name: c.participant.name, points: 0 };
-      current.points += c.activity.points || 0;
-      byParticipant.set(id, current);
-    }
-
-    const ranking = Array.from(byParticipant.values()).sort((a, b) => {
-      if (b.points !== a.points) return b.points - a.points;
-      return a.name.localeCompare(b.name);
-    });
-
-    res.json({ periodKey, ranking });
+    res.status(410).json({ error: "DEPRECATED" });
   });
 
   app.get(
@@ -184,8 +143,6 @@ function registerReportRoutes(app, prisma) {
         select: { id: true, name: true, isActive: true },
       });
 
-      const groupById = new Map(groups.map((g) => [g.id, g]));
-
       const statsByGroup = new Map();
       for (const g of groups) {
         statsByGroup.set(g.id, {
@@ -198,45 +155,28 @@ function registerReportRoutes(app, prisma) {
 
       const completionWhereBase =
         periodType === "YEAR"
-          ? { status: "CONCLUIDA", OR: periodKeys.flatMap((y) => [{ periodKey: y }, { periodKey: { startsWith: `${y}-` } }]) }
-          : { periodKey: { in: periodKeys }, status: "CONCLUIDA" };
+          ? {
+              status: "CONCLUIDA",
+              isValidated: true,
+              OR: periodKeys.flatMap((y) => [{ periodKey: y }, { periodKey: { startsWith: `${y}-` } }]),
+            }
+          : { periodKey: { in: periodKeys }, status: "CONCLUIDA", isValidated: true };
 
       const completionWhere =
         req.auth.role === "LIDER"
-          ? { ...completionWhereBase, participant: { groups: { some: { groupId: { in: leaderGroupIds } } } } }
+          ? { ...completionWhereBase, groupId: { in: leaderGroupIds } }
           : completionWhereBase;
 
       const completions = await prisma.completion.findMany({
         where: completionWhere,
-        include: {
-          activity: { select: { points: true } },
-          participant: {
-            select: {
-              id: true,
-              groups: {
-                include: {
-                  group: { select: { id: true, name: true, isActive: true } },
-                },
-              },
-            },
-          },
-        },
+        select: { groupId: true, periodKey: true, activityPoints: true, activity: { select: { points: true } } },
       });
 
       for (const c of completions) {
-        const memberships = (c.participant?.groups || [])
-          .map((m) => m.group)
-          .filter(Boolean)
-          .filter((g) => (includeInactiveGroups ? true : g.isActive))
-          .sort((a, b) => a.name.localeCompare(b.name));
-
-        const group = memberships.find((g) => groupById.has(g.id));
-        if (!group) continue;
-
-        const stats = statsByGroup.get(group.id);
+        const stats = statsByGroup.get(c.groupId);
         if (!stats) continue;
 
-        const points = c.activity?.points || 0;
+        const points = c.activityPoints ?? c.activity?.points ?? 0;
         const bucketKey = periodType === "YEAR" ? extractYearFromPeriodKey(c.periodKey) : c.periodKey;
         if (!bucketKey || !stats.perPeriod[bucketKey]) continue;
 
@@ -274,65 +214,11 @@ function registerReportRoutes(app, prisma) {
   );
 
   app.get("/api/reports/participant/:id", requireAuth, requireRole(["ADMIN", "LIDER"]), async (req, res) => {
-    const schema = z.object({
-      periodKey: z.string().min(1).optional(),
-    });
-
-    const parsed = schema.safeParse(req.query);
-    if (!parsed.success) {
-      res.status(400).json({ error: "VALIDATION_ERROR" });
-      return;
-    }
-
-    const periodKey = parsed.data.periodKey || getPeriodKey(new Date(), "QUARTER");
-
-    if (req.auth.role === "LIDER") {
-      const leaderGroupIds = await getLeaderGroupIds(prisma, req.auth.userId);
-      const allowed = await prisma.groupMember.findFirst({
-        where: { participantId: req.params.id, groupId: { in: leaderGroupIds } },
-        select: { id: true },
-      });
-      if (!allowed) {
-        res.status(403).json({ error: "FORBIDDEN" });
-        return;
-      }
-    }
-
-    const completions = await prisma.completion.findMany({
-      where: { participantId: req.params.id, periodKey },
-      include: { activity: true },
-      orderBy: [{ updatedAt: "desc" }],
-    });
-
-    res.json({ periodKey, completions });
+    res.status(410).json({ error: "DEPRECATED" });
   });
 
   app.get("/api/reports/me", requireAuth, async (req, res) => {
-    const schema = z.object({
-      periodKey: z.string().min(1).optional(),
-    });
-
-    const parsed = schema.safeParse(req.query);
-    if (!parsed.success) {
-      res.status(400).json({ error: "VALIDATION_ERROR" });
-      return;
-    }
-
-    const selfId = await getSelfParticipantId(prisma, req.auth.userId);
-    if (!selfId) {
-      res.status(403).json({ error: "NO_PARTICIPANT_PROFILE" });
-      return;
-    }
-
-    const periodKey = parsed.data.periodKey || getPeriodKey(new Date(), "QUARTER");
-
-    const completions = await prisma.completion.findMany({
-      where: { participantId: selfId, periodKey },
-      include: { activity: true },
-      orderBy: [{ updatedAt: "desc" }],
-    });
-
-    res.json({ periodKey, participantId: selfId, completions });
+    res.status(410).json({ error: "DEPRECATED" });
   });
 }
 

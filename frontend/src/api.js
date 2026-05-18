@@ -104,13 +104,14 @@ export function toastConfirm(message, options = {}) {
     }
 
     function onCancel() {
-      toast.dismiss(id);
       settle(false);
+      toast.dismiss(id);
     }
 
     function onConfirm() {
-      toast.dismiss(id);
+      console.log("[toastConfirm] confirm click", { id, title, message: String(message || ""), confirmText });
       settle(true);
+      toast.dismiss(id);
     }
 
     toast(

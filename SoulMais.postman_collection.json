@@ -22,12 +22,16 @@
       "value": ""
     },
     {
-      "key": "participantId",
+      "key": "groupId",
       "value": ""
     },
     {
       "key": "periodKey",
       "value": ""
+    },
+    {
+      "key": "periodType",
+      "value": "WEEK"
     }
   ],
   "item": [
@@ -203,7 +207,7 @@
           ]
         },
         {
-          "name": "02 List participants -> set participantId",
+          "name": "02 List groups -> set groupId",
           "request": {
             "method": "GET",
             "header": [
@@ -212,7 +216,7 @@
                 "value": "Bearer {{accessToken}}"
               }
             ],
-            "url": "{{baseUrl}}/api/participants"
+            "url": "{{baseUrl}}/api/groups"
           },
           "event": [
             {
@@ -225,11 +229,11 @@
                   "});",
                   "",
                   "const json = pm.response.json();",
-                  "pm.expect(json.participants).to.be.an('array');",
+                  "pm.expect(json.groups).to.be.an('array');",
                   "",
-                  "const p = json.participants[0];",
-                  "pm.expect(p && p.id).to.be.a('string');",
-                  "pm.collectionVariables.set('participantId', p.id);"
+                  "const g = json.groups[0];",
+                  "pm.expect(g && g.id).to.be.a('string');",
+                  "pm.collectionVariables.set('groupId', g.id);"
                 ]
               }
             }
@@ -295,7 +299,7 @@
           ]
         },
         {
-          "name": "05 Upsert completion -> CONCLUIDA",
+          "name": "05 Save completion (PENDENTE) - PUT /api/completions/by-group",
           "request": {
             "method": "PUT",
             "header": [
@@ -310,9 +314,9 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"participantId\": \"{{participantId}}\",\n  \"activityId\": \"{{activityId}}\",\n  \"periodKey\": \"{{periodKey}}\",\n  \"status\": \"CONCLUIDA\",\n  \"note\": \"Marcado via Postman\",\n  \"evidenceUrl\": \"https://example.com/comprovante\"\n}"
+              "raw": "{\n  \"groupId\": \"{{groupId}}\",\n  \"activityId\": \"{{activityId}}\",\n  \"periodKey\": \"{{periodKey}}\",\n  \"status\": \"PENDENTE\",\n  \"evidenceUrl\": \"https://example.com/comprovante\"\n}"
             },
-            "url": "{{baseUrl}}/api/completions"
+            "url": "{{baseUrl}}/api/completions/by-group"
           },
           "event": [
             {
@@ -325,15 +329,56 @@
                   "});",
                   "",
                   "const json = pm.response.json();",
+                  "pm.expect(json.ok).to.eql(true);",
                   "pm.expect(json.completion).to.be.an('object');",
-                  "pm.expect(json.completion.status).to.eql('CONCLUIDA');"
+                  "pm.expect(json.completion.status).to.eql('PENDENTE');"
                 ]
               }
             }
           ]
         },
         {
-          "name": "06 Ranking -> GET /api/reports/ranking?periodKey={{periodKey}}",
+          "name": "06 Validate completion - PUT /api/completions/by-group/validate",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"groupId\": \"{{groupId}}\",\n  \"activityId\": \"{{activityId}}\",\n  \"periodKey\": \"{{periodKey}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/completions/by-group/validate"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "pm.expect(json.ok).to.eql(true);",
+                  "pm.expect(json.completion).to.be.an('object');",
+                  "pm.expect(json.completion.status).to.eql('CONCLUIDA');",
+                  "pm.expect(json.completion.isValidated).to.eql(true);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 Ranking Groups - GET /api/reports/ranking-groups?periodType={{periodType}}",
           "request": {
             "method": "GET",
             "header": [
@@ -342,7 +387,7 @@
                 "value": "Bearer {{accessToken}}"
               }
             ],
-            "url": "{{baseUrl}}/api/reports/ranking?periodKey={{periodKey}}"
+            "url": "{{baseUrl}}/api/reports/ranking-groups?periodType={{periodType}}"
           },
           "event": [
             {
@@ -355,7 +400,8 @@
                   "});",
                   "",
                   "const json = pm.response.json();",
-                  "pm.expect(json.ranking).to.be.an('array');"
+                  "pm.expect(json.consolidated).to.be.an('array');",
+                  "pm.expect(json.byPeriod).to.be.an('object');"
                 ]
               }
             }
@@ -510,6 +556,100 @@
       ]
     },
     {
+      "name": "Periods list - GET /api/periods/list?periodType={{periodType}}",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/periods/list?periodType={{periodType}}"
+      }
+    },
+    {
+      "name": "Groups - GET /api/groups (ADMIN/LIDER)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/groups"
+      }
+    },
+    {
+      "name": "Completions (by group)",
+      "item": [
+        {
+          "name": "Summary - GET /api/completions/by-group/summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/completions/by-group/summary?groupId={{groupId}}&periodKey={{periodKey}}"
+          }
+        },
+        {
+          "name": "Get activity - GET /api/completions/by-group/activity",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/completions/by-group/activity?groupId={{groupId}}&periodKey={{periodKey}}&activityId={{activityId}}"
+          }
+        },
+        {
+          "name": "Save (PENDENTE) - PUT /api/completions/by-group",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"groupId\": \"{{groupId}}\",\n  \"activityId\": \"{{activityId}}\",\n  \"periodKey\": \"{{periodKey}}\",\n  \"status\": \"PENDENTE\",\n  \"evidenceUrl\": \"\"\n}"
+            },
+            "url": "{{baseUrl}}/api/completions/by-group"
+          }
+        },
+        {
+          "name": "Validate - PUT /api/completions/by-group/validate (ADMIN)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"groupId\": \"{{groupId}}\",\n  \"activityId\": \"{{activityId}}\",\n  \"periodKey\": \"{{periodKey}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/completions/by-group/validate"
+          }
+        }
+      ]
+    },
+    {
       "name": "Participants",
       "item": [
         {
@@ -552,7 +692,7 @@
       "name": "Reports",
       "item": [
         {
-          "name": "Ranking - GET /api/reports/ranking (ADMIN/LIDER)",
+          "name": "Ranking Groups - GET /api/reports/ranking-groups (ADMIN/LIDER)",
           "request": {
             "method": "GET",
             "header": [
@@ -561,7 +701,7 @@
                 "value": "Bearer {{accessToken}}"
               }
             ],
-            "url": "{{baseUrl}}/api/reports/ranking"
+            "url": "{{baseUrl}}/api/reports/ranking-groups?periodType={{periodType}}"
           }
         }
       ]

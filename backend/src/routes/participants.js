@@ -239,7 +239,6 @@ function registerParticipantRoutes(app, prisma) {
     }
 
     await prisma.$transaction(async (tx) => {
-      await tx.completion.deleteMany({ where: { participantId: id } });
       await tx.groupMember.deleteMany({ where: { participantId: id } });
       await tx.participant.delete({ where: { id } });
 

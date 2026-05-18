@@ -320,7 +320,7 @@ async function seedDatabase(prisma) {
 
   const activities = await prisma.activity.findMany({
     where: { isActive: true },
-    select: { id: true, slug: true, period: true },
+    select: { id: true, slug: true, period: true, points: true },
   });
 
   const bySlug = new Map(activities.map((a) => [a.slug, a]));
@@ -340,22 +340,30 @@ async function seedDatabase(prisma) {
 
     await prisma.completion.upsert({
       where: {
-        participantId_activityId_periodKey: {
-          participantId: participant.id,
+        groupId_activityId_periodKey: {
+          groupId: group.id,
           activityId: a.id,
           periodKey,
         },
       },
       create: {
-        participantId: participant.id,
+        groupId: group.id,
         activityId: a.id,
         periodKey,
         status: "CONCLUIDA",
         completedAt: now,
+        activityPeriod: a.period,
+        activityPoints: a.points,
+        isValidated: true,
+        validatedAt: now,
       },
       update: {
         status: "CONCLUIDA",
         completedAt: now,
+        activityPeriod: a.period,
+        activityPoints: a.points,
+        isValidated: true,
+        validatedAt: now,
       },
     });
   }
